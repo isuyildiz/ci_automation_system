@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createPipeline, formatApiError } from '../../services/api';
+import { triggerPipeline, formatApiError } from '../../services/api';
 
 function isValidUrl(url) {
   try {
@@ -32,7 +32,7 @@ export default function TriggerForm({ onSuccess, onClose }) {
     setErrors({});
     setLoading(true);
     try {
-      const res = await createPipeline(form.repoUrl.trim(), form.branch.trim());
+      const res = await triggerPipeline(form.repoUrl.trim(), form.branch.trim());
       onSuccess?.(res.data);
     } catch (err) {
       setApiError(formatApiError(err));

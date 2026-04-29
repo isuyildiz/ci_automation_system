@@ -86,6 +86,12 @@ export const getPipeline = (id) =>
 export const createPipeline = (repoUrl, branch) =>
   api.post('/pipelines', { repo_url: repoUrl, branch });
 
+export const triggerPipeline = (repoUrl, branch) =>
+  axios.post('/trigger', { repo_url: repoUrl, branch }, {
+    headers: { 'Content-Type': 'application/json' },
+    timeout: 120000,
+  });
+
 export const stopPipeline = (id) =>
   api.post(`/pipelines/${id}/stop`);
 
