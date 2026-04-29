@@ -10,12 +10,14 @@ from app.models.pipeline import Pipeline, PipelineStatus
 from app.models.step import StepName, StepStatus
 from app.repositories.log_repo import LogRepository
 from app.repositories.pipeline_repo import PipelineRepository
+from app.repositories.repository_repo import RepositoryRepository
 from app.repositories.step_repo import StepRepository
 from app.schemas.pipeline import PipelineCreate
 
 _pipeline_repo = PipelineRepository()
 _step_repo = StepRepository()
 _log_repo = LogRepository()
+_repo_repo = RepositoryRepository()
 
 _STEP_ORDER = [
     (StepName.install, 1),
@@ -32,7 +34,10 @@ class PipelineService:
         redis: Redis,
         data: PipelineCreate,
     ) -> Pipeline:
+        repo = await _repo_repo.get_by_url(session, str(data.repo_url))
+
         pipeline = await _pipeline_repo.create(session, {
+            "repo_id":       repo.id if repo else None,
             "repo_url":      str(data.repo_url),
             "branch":        data.branch,
             "commit_hash":   data.commit_hash,
