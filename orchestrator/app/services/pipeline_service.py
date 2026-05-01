@@ -129,18 +129,17 @@ class PipelineService:
 
         total, passed, failed, skipped = 0, 0, 0, 0
         # pytest summary: "38 passed in 12.60s" / "3 passed, 1 failed, 2 skipped in 4.5s"
-        # "passed" anchor prevents matching at position 0 with all groups None
+        # Accumulate across all summary lines (supports multiple pytest runs in one step)
         pattern = re.compile(
             r"(\d+) passed(?:,\s*(\d+) failed)?(?:,\s*(\d+) skipped)?"
         )
         for log, _ in rows:
             m = pattern.search(log.content)
             if m:
-                passed  = int(m.group(1) or 0)
-                failed  = int(m.group(2) or 0)
-                skipped = int(m.group(3) or 0)
-                total   = passed + failed + skipped
-                break
+                passed  += int(m.group(1) or 0)
+                failed  += int(m.group(2) or 0)
+                skipped += int(m.group(3) or 0)
+        total = passed + failed + skipped
 
         duration = pipeline.duration_sec or 0
         return {
