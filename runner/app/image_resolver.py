@@ -45,19 +45,26 @@ class ImageResolver:
         return self._config_cache
 
     def resolve_image(self) -> str:
-        """Reads config to determine the docker image."""
+        """Reads config to determine the global docker image."""
         config = self._load_config()
-            
-        # Check for explicitly defined image
+
         if "image" in config:
             logger.info(f"Using explicitly defined image: {config['image']}")
             return config["image"]
 
-        # Fallback to runtime detection
         runtime = config.get("runtime", "default").lower()
         image = DEFAULT_IMAGES.get(runtime, DEFAULT_IMAGES["default"])
         logger.info(f"Resolved image {image} for runtime {runtime}")
         return image
+
+    def get_step_image(self, step_name: str) -> str:
+        """Returns step-specific image if defined, otherwise falls back to global image."""
+        config = self._load_config()
+        step_config = config.get("steps", {}).get(step_name, {})
+        if isinstance(step_config, dict) and "image" in step_config:
+            logger.info(f"Step '{step_name}' using image: {step_config['image']}")
+            return step_config["image"]
+        return self.resolve_image()
 
     def get_commands(self) -> dict:
         """

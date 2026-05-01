@@ -12,7 +12,7 @@ class StepExecutor:
         self.api_client = api_client
         self.container_manager = container_manager
 
-    def execute_steps(self, pipeline_id: str, resolver, image: str, steps: list[str], step_ids: dict, workspace: str) -> Optional[bool]:
+    def execute_steps(self, pipeline_id: str, resolver, steps: list[str], step_ids: dict, workspace: str) -> Optional[bool]:
         """
         Executes the defined steps sequentially. 
         Returns True if SUCCESS, False if FAILED, None if STOPPED (e.g. timeout).
@@ -61,10 +61,11 @@ class StepExecutor:
                 logger.warning(f"Invalid timeout value '{raw_timeout}' for step '{step}'. Using default 120.")
                 timeout = 120
 
-            logger.info(f"Executing step '{step}' (ID: {step_id}) with command: {command}")
-            
+            image = resolver.get_step_image(step)
+            logger.info(f"Executing step '{step}' (ID: {step_id}) with image '{image}' and command: {command}")
+
             self.api_client.update_step_status(step_id, "RUNNING")
-            
+
             # 1. create container
             container = self.container_manager.create_container(image, command, volumes, working_dir=workspace)
             if not container:

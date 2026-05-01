@@ -69,15 +69,12 @@ def main():
 
             api_client.update_pipeline_status(pipeline_id, "RUNNING")
 
-            # Resolve image based on workspace
             resolver = ImageResolver(workspace)
-            image = resolver.resolve_image()
 
-            # Execute steps
+            # Execute steps (image resolved per-step from ci-config.yaml)
             exec_result = step_executor.execute_steps(
                 pipeline_id=pipeline_id,
                 resolver=resolver,
-                image=image,
                 steps=steps,
                 step_ids=step_ids,
                 workspace=workspace
