@@ -50,8 +50,7 @@ api.interceptors.response.use(
     try {
       const res = await axios.post(
         `${BASE_URL}/api/v1/auth/refresh`,
-        {},
-        { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } }
+        { refresh_token: localStorage.getItem('access_token') },
       );
       const newToken = res.data.access_token;
       localStorage.setItem('access_token', newToken);
@@ -116,7 +115,9 @@ export const formatApiError = (error) => {
   if (error.response?.data?.error?.message) return error.response.data.error.message;
   if (error.response?.data?.detail) {
     const d = error.response.data.detail;
-    return typeof d === 'string' ? d : JSON.stringify(d);
+    if (typeof d === 'string') return d;
+    if (typeof d === 'object' && d !== null && d.message) return d.message;
+    return JSON.stringify(d);
   }
   if (error.message === 'Network Error') return 'Sunucuya bağlanılamıyor. Servisin çalıştığından emin olun.';
   if (error.code === 'ECONNABORTED') return 'İstek zaman aşımına uğradı.';

@@ -77,7 +77,8 @@ def main():
                 resolver=resolver,
                 steps=steps,
                 step_ids=step_ids,
-                workspace=workspace
+                workspace=workspace,
+                redis_client=r,
             )
 
             if exec_result is True:

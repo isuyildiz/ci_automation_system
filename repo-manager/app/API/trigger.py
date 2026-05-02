@@ -2,7 +2,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from requests import RequestException
+from requests import HTTPError, RequestException
 
 from app.git_client import GitOperationError
 from app.trigger_handler import build_pipeline_request, prepare_manual_trigger_payload, send_to_orchestrator
@@ -27,6 +27,14 @@ async def trigger_pipeline(payload: TriggerRequest) -> dict[str, Any]:
             status_code=500,
             detail=f"Repository preparation failed: {exc}",
         ) from exc
+    except HTTPError as exc:
+        # Orchestrator'dan gelen 4xx hataları (ör. 409 ALREADY_RUNNING) olduğu gibi ilet
+        status_code = exc.response.status_code if exc.response is not None else 502
+        try:
+            detail = exc.response.json().get("detail", str(exc))
+        except Exception:
+            detail = str(exc)
+        raise HTTPException(status_code=status_code, detail=detail) from exc
     except RequestException as exc:
         raise HTTPException(
             status_code=502,

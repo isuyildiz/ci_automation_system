@@ -74,3 +74,15 @@ class PipelineRepository:
             select(func.count()).where(Pipeline.status == PipelineStatus.RUNNING)
         )
         return result.scalar_one()
+
+    async def get_active_by_repo_branch(
+        self, session: AsyncSession, repo_url: str, branch: str
+    ) -> Pipeline | None:
+        result = await session.execute(
+            select(Pipeline).where(
+                Pipeline.repo_url == repo_url,
+                Pipeline.branch == branch,
+                Pipeline.status.in_([PipelineStatus.QUEUED, PipelineStatus.RUNNING]),
+            )
+        )
+        return result.scalar_one_or_none()

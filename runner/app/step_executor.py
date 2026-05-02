@@ -1,5 +1,7 @@
 import logging
 import os
+import threading
+import time
 from typing import Optional
 from app.container_manager import ContainerManager
 from app.log_collector import LogCollector
@@ -12,10 +14,10 @@ class StepExecutor:
         self.api_client = api_client
         self.container_manager = container_manager
 
-    def execute_steps(self, pipeline_id: str, resolver, steps: list[str], step_ids: dict, workspace: str) -> Optional[bool]:
+    def execute_steps(self, pipeline_id: str, resolver, steps: list[str], step_ids: dict, workspace: str, redis_client=None) -> Optional[bool]:
         """
-        Executes the defined steps sequentially. 
-        Returns True if SUCCESS, False if FAILED, None if STOPPED (e.g. timeout).
+        Executes the defined steps sequentially.
+        Returns True if SUCCESS, False if FAILED, None if STOPPED (timeout or user stop).
         """
         logger.info(f"Starting execution for pipeline {pipeline_id} with steps: {steps}")
 
@@ -85,7 +87,9 @@ class StepExecutor:
             log_collector = LogCollector(self.api_client, step_id)
             
             timeout_occurred = [False]
-            
+            stop_occurred = [False]
+            _poll_active = [True]
+
             def kill_action():
                 logger.error(f"Timeout reached for step {step}. Killing container.")
                 timeout_occurred[0] = True
@@ -93,6 +97,25 @@ class StepExecutor:
 
             timeout_guard = TimeoutGuard(timeout, kill_action)
             timeout_guard.start()
+
+            if redis_client is not None:
+                _stop_key = f"pipeline_stop:{pipeline_id}"
+
+                def _poll_stop():
+                    while _poll_active[0]:
+                        time.sleep(2)
+                        if not _poll_active[0]:
+                            break
+                        try:
+                            if redis_client.exists(_stop_key):
+                                logger.info(f"Stop signal received for pipeline {pipeline_id}. Killing container.")
+                                stop_occurred[0] = True
+                                self.container_manager.stop_container(container)
+                                return
+                        except Exception as exc:
+                            logger.warning(f"Error checking stop signal: {exc}")
+
+                threading.Thread(target=_poll_stop, daemon=True).start()
 
             # 4. wait for container to finish
             try:
@@ -102,6 +125,7 @@ class StepExecutor:
                 logger.error(f"Error waiting for container to finish: {e}")
                 exit_code = -1
 
+            _poll_active[0] = False
             timeout_guard.stop()
 
             # 5. collect logs AFTER wait
@@ -119,11 +143,17 @@ class StepExecutor:
             # 7. cleanup container
             self.container_manager.cleanup_container(container)
 
+            # Handle user-initiated STOP
+            if stop_occurred[0]:
+                logger.info(f"Step {step} stopped by user request.")
+                self.api_client.update_step_status(step_id, "FAILED")
+                return None  # Pipeline STOPPED
+
             # Handle TIMEOUT separately
             if timeout_occurred[0]:
                 logger.error(f"Step {step} marked as FAILED due to timeout.")
                 self.api_client.update_step_status(step_id, "FAILED")
-                return None # Pipeline STOPPED
+                return None  # Pipeline STOPPED
 
             # Handle exit codes
             if exit_code != 0:
