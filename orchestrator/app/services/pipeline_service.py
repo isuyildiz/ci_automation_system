@@ -138,19 +138,17 @@ class PipelineService:
 
         total, passed, failed, skipped = 0, 0, 0, 0
 
-        # pytest summary: "3 passed in 4.5s" / "3 passed, 1 failed, 2 skipped in 4.5s"
-        pytest_pattern = re.compile(
-            r"(\d+) passed(?:,\s*(\d+) failed)?(?:,\s*(\d+) skipped)?"
-        )
-
         for log, _ in rows:
             content = log.content
 
-            # Vitest summary: " Tests  2 failed | 8 passed | 1 skipped (11)"
-            # Matched only on the dedicated "Tests" summary line (not "Test Files")
-            if "Tests" in content and "Test Files" not in content:
-                failed_m  = re.search(r"(\d+) failed",  content)
+            # Skip "Test Files  N passed (N)" — totals are captured in "Tests" line
+            if re.match(r"\s*Test Files\s+", content):
+                continue
+
+            # Vitest summary: "      Tests  N failed | N passed (N)"
+            if re.match(r"\s*Tests\s+", content):
                 passed_m  = re.search(r"(\d+) passed",  content)
+                failed_m  = re.search(r"(\d+) failed",  content)
                 skipped_m = re.search(r"(\d+) skipped", content)
                 if passed_m or failed_m:
                     passed  += int(passed_m.group(1)  if passed_m  else 0)
@@ -158,11 +156,16 @@ class PipelineService:
                     skipped += int(skipped_m.group(1) if skipped_m else 0)
                 continue
 
-            m = pytest_pattern.search(content)
-            if m:
-                passed  += int(m.group(1) or 0)
-                failed  += int(m.group(2) or 0)
-                skipped += int(m.group(3) or 0)
+            # Pytest summary: "N failed, M passed, P skipped in X.Xs"
+            # Order varies: failed may come before passed
+            if re.search(r"\bin \d+\.?\d*s\b", content):
+                passed_m  = re.search(r"(\d+) passed",  content)
+                failed_m  = re.search(r"(\d+) failed",  content)
+                skipped_m = re.search(r"(\d+) skipped", content)
+                if passed_m or failed_m:
+                    passed  += int(passed_m.group(1)  if passed_m  else 0)
+                    failed  += int(failed_m.group(1)  if failed_m  else 0)
+                    skipped += int(skipped_m.group(1) if skipped_m else 0)
 
         total = passed + failed + skipped
 

@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 
 from app.api_client import OrchestratorAPIClient
 
@@ -38,7 +39,7 @@ def test_update_step_status_success_sends_finished_at(client):
 
 
 def test_update_step_status_returns_false_on_error(client):
-    with patch.object(client.session, "patch", side_effect=Exception("network error")):
+    with patch.object(client.session, "patch", side_effect=requests.ConnectionError("network error")):
         result = client.update_step_status("step-1", "RUNNING")
         assert result is False
 
@@ -63,7 +64,7 @@ def test_send_step_logs_empty_list_returns_true(client):
 
 
 def test_send_step_logs_returns_false_on_error(client):
-    with patch.object(client.session, "post", side_effect=Exception("timeout")):
+    with patch.object(client.session, "post", side_effect=requests.Timeout("timeout")):
         result = client.send_step_logs("step-1", ["some log"])
         assert result is False
 
