@@ -1,3 +1,4 @@
+import httpx
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,10 +7,59 @@ from app.schemas.repository import RepositoryCreate
 
 _repo = RepositoryRepository()
 
+_GITHUB_PREFIX = "https://github.com/"
+
+
+async def _assert_public_github_repo(url: str) -> None:
+    """Raises 400 if the URL is not an accessible public GitHub repository."""
+    if not url.startswith(_GITHUB_PREFIX):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "INVALID_INPUT", "message": "Yalnızca GitHub repoları desteklenmektedir (https://github.com/...)"},
+        )
+
+    path = url.removeprefix(_GITHUB_PREFIX).rstrip("/")
+    parts = path.split("/")
+    if len(parts) < 2 or not parts[0] or not parts[1]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "INVALID_INPUT", "message": "Geçerli bir GitHub repo URL'i girin (https://github.com/kullanici/repo)"},
+        )
+
+    owner, repo = parts[0], parts[1]
+    api_url = f"https://api.github.com/repos/{owner}/{repo}"
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            resp = await client.get(api_url, headers={"Accept": "application/vnd.github+json"})
+    except httpx.RequestError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "INVALID_INPUT", "message": "GitHub'a ulaşılamadı. Lütfen URL'i kontrol edin."},
+        )
+
+    if resp.status_code == 200:
+        if resp.json().get("private", True):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "INVALID_INPUT", "message": "Private repolar eklenemez. Yalnızca public GitHub repoları desteklenmektedir."},
+            )
+    elif resp.status_code == 404:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "INVALID_INPUT", "message": "Repo bulunamadı veya private. Yalnızca public GitHub repoları eklenebilir."},
+        )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "INVALID_INPUT", "message": f"GitHub'dan beklenmedik yanıt alındı (HTTP {resp.status_code})."},
+        )
+
 
 class RepositoryService:
 
     async def create(self, session: AsyncSession, data: RepositoryCreate):
+        await _assert_public_github_repo(str(data.url))
+
         existing = await _repo.get_by_url(session, str(data.url))
         if existing:
             raise HTTPException(
