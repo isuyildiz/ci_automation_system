@@ -83,9 +83,10 @@ class StepExecutor:
                 self.container_manager.cleanup_container(container)
                 return False
 
-            # 3. start log collection setup (we don't start the threaded stream for safety)
+            # 3. start live log streaming
             log_collector = LogCollector(self.api_client, step_id)
-            
+            log_collector.start_collecting(container)
+
             timeout_occurred = [False]
             stop_occurred = [False]
             _poll_active = [True]
@@ -128,19 +129,10 @@ class StepExecutor:
             _poll_active[0] = False
             timeout_guard.stop()
 
-            # 5. collect logs AFTER wait
-            try:
-                logs = container.logs(stdout=True, stderr=True)
-                log_lines = logs.decode('utf-8', errors='replace').splitlines()
-                if log_lines:
-                    self.api_client.send_step_logs(step_id, log_lines)
-            except Exception as e:
-                logger.error(f"Failed to collect logs for step {step}: {e}")
-            
-            # 6. stop log collector (flushes if thread was active)
+            # 5. stop streaming and flush remaining buffered logs
             log_collector.stop_collecting()
-            
-            # 7. cleanup container
+
+            # 6. cleanup container
             self.container_manager.cleanup_container(container)
 
             # Handle user-initiated STOP
