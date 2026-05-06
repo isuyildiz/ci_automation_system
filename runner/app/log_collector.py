@@ -32,18 +32,20 @@ class LogCollector:
 
     def _stream_logs(self, container):
         try:
-            # We use stream=True to get logs as they arrive.
-            for log_chunk in container.logs(stream=True, follow=True, stdout=True, stderr=True):
+            for stdout_chunk, stderr_chunk in container.logs(
+                stream=True, follow=True, stdout=True, stderr=True, demux=True
+            ):
                 if self._stop_event.is_set():
                     break
-                
-                # decode and strip trailing newline
-                line = log_chunk.decode('utf-8', errors='replace').rstrip('\r\n')
-                
-                with self._lock:
-                    self.logs_buffer.append(line)
-                    if len(self.logs_buffer) >= self.batch_size:
-                        self._flush_logs()
+                for chunk, stream in ((stdout_chunk, "stdout"), (stderr_chunk, "stderr")):
+                    if not chunk:
+                        continue
+                    for raw_line in chunk.decode('utf-8', errors='replace').splitlines():
+                        line = raw_line.rstrip('\r')
+                        with self._lock:
+                            self.logs_buffer.append((line, stream))
+                            if len(self.logs_buffer) >= self.batch_size:
+                                self._flush_logs()
         except Exception as e:
             logger.error(f"Error streaming logs for step {self.step_id}: {e}")
 

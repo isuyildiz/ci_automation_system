@@ -69,6 +69,23 @@ def test_send_step_logs_returns_false_on_error(client):
         assert result is False
 
 
+def test_send_step_logs_uses_stream_from_tuple(client):
+    with patch.object(client.session, "post", return_value=_mock_response(201)) as mock_post:
+        client.send_step_logs("step-1", [("out line", "stdout"), ("err line", "stderr")])
+        payload = mock_post.call_args.kwargs["json"]
+        assert payload["lines"][0]["stream"] == "stdout"
+        assert payload["lines"][0]["content"] == "out line"
+        assert payload["lines"][1]["stream"] == "stderr"
+        assert payload["lines"][1]["content"] == "err line"
+
+
+def test_send_step_logs_defaults_stream_to_stdout_for_plain_strings(client):
+    with patch.object(client.session, "post", return_value=_mock_response(201)) as mock_post:
+        client.send_step_logs("step-1", ["plain line"])
+        payload = mock_post.call_args.kwargs["json"]
+        assert payload["lines"][0]["stream"] == "stdout"
+
+
 # ── update_pipeline_status ─────────────────────────────────────────────────
 
 def test_update_pipeline_status_success_includes_finished_at(client):
