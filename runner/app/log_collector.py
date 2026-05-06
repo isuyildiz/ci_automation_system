@@ -12,6 +12,7 @@ class LogCollector:
         self._lock = threading.RLock()
         self._stop_event = threading.Event()
         self._worker_thread = None
+        self._line_counter = 0
 
     def start_collecting(self, container):
         """Starts collecting logs from the given container."""
@@ -48,11 +49,13 @@ class LogCollector:
 
     def _flush_logs(self):
         logs_to_send = []
+        start_line = 1
         with self._lock:
             if not self.logs_buffer:
                 return
             logs_to_send = list(self.logs_buffer)
             self.logs_buffer.clear()
+            start_line = self._line_counter + 1
+            self._line_counter += len(logs_to_send)
 
-        # Send to API
-        self.api_client.send_step_logs(self.step_id, logs_to_send)
+        self.api_client.send_step_logs(self.step_id, logs_to_send, start_line=start_line)

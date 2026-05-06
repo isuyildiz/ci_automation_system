@@ -14,7 +14,7 @@ def test_stop_collecting_flushes_buffered_logs():
     collector, api = _make_collector()
     collector.logs_buffer = ["line 1", "line 2"]
     collector.stop_collecting()
-    api.send_step_logs.assert_called_once_with("step-123", ["line 1", "line 2"])
+    api.send_step_logs.assert_called_once_with("step-123", ["line 1", "line 2"], start_line=1)
 
 
 def test_stop_collecting_does_not_call_api_if_buffer_empty():
@@ -34,7 +34,7 @@ def test_flush_sends_correct_step_id():
     collector, api = _make_collector()
     collector.logs_buffer = ["hello"]
     collector._flush_logs()
-    api.send_step_logs.assert_called_once_with("step-123", ["hello"])
+    api.send_step_logs.assert_called_once_with("step-123", ["hello"], start_line=1)
 
 
 def test_batch_flush_when_buffer_reaches_limit():

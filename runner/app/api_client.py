@@ -30,7 +30,7 @@ class OrchestratorAPIClient:
             logger.error(f"Failed to update step {step_id} status: {e}")
             return False
 
-    def send_step_logs(self, step_id: str, log_lines: list[str]) -> bool:
+    def send_step_logs(self, step_id: str, log_lines: list[str], start_line: int = 1) -> bool:
         """POST /api/v1/internal/steps/{step_id}/logs"""
         if not log_lines:
             return True
@@ -39,7 +39,7 @@ class OrchestratorAPIClient:
         payload = {
             "lines": [
                 {
-                    "line_number": i + 1,
+                    "line_number": start_line + i,
                     "stream": "stdout",
                     "timestamp": now,
                     "content": line,
