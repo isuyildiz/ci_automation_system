@@ -32,8 +32,10 @@ class LogCollector:
 
     def _stream_logs(self, container):
         try:
-            for stdout_chunk, stderr_chunk in container.logs(
-                stream=True, follow=True, stdout=True, stderr=True, demux=True
+            # container.logs() in docker-py 7.x does not support demux=True.
+            # Use the low-level APIClient directly to get stdout/stderr separated.
+            for stdout_chunk, stderr_chunk in container.client.api.logs(
+                container.id, stream=True, follow=True, stdout=True, stderr=True, demux=True
             ):
                 if self._stop_event.is_set():
                     break
