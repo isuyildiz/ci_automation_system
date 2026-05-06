@@ -32,22 +32,23 @@ class LogCollector:
 
     def _stream_logs(self, container):
         try:
-            # container.logs() in docker-py 7.x does not support demux=True.
-            # Use the low-level APIClient directly to get stdout/stderr separated.
-            for stdout_chunk, stderr_chunk in container.client.api.logs(
-                container.id, stream=True, follow=True, stdout=True, stderr=True, demux=True
-            ):
+            # docker-py 7.x logs() strips stream-type from the multiplexed header.
+            # Use attach_socket + frames_iter_no_tty to preserve stdout/stderr identity.
+            from docker.utils.socket import frames_iter_no_tty, STDERR
+            sock = container.client.api.attach_socket(
+                container.id,
+                params={'logs': 1, 'stream': 1, 'stdout': 1, 'stderr': 1, 'follow': 1}
+            )
+            for stream_id, data in frames_iter_no_tty(sock):
                 if self._stop_event.is_set():
                     break
-                for chunk, stream in ((stdout_chunk, "stdout"), (stderr_chunk, "stderr")):
-                    if not chunk:
-                        continue
-                    for raw_line in chunk.decode('utf-8', errors='replace').splitlines():
-                        line = raw_line.rstrip('\r')
-                        with self._lock:
-                            self.logs_buffer.append((line, stream))
-                            if len(self.logs_buffer) >= self.batch_size:
-                                self._flush_logs()
+                stream = "stderr" if stream_id == STDERR else "stdout"
+                for raw_line in data.decode('utf-8', errors='replace').splitlines():
+                    line = raw_line.rstrip('\r')
+                    with self._lock:
+                        self.logs_buffer.append((line, stream))
+                        if len(self.logs_buffer) >= self.batch_size:
+                            self._flush_logs()
         except Exception as e:
             logger.error(f"Error streaming logs for step {self.step_id}: {e}")
 
