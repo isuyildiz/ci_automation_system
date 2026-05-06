@@ -31,26 +31,39 @@ class LogCollector:
         self._flush_logs()
 
     def _stream_logs(self, container):
-        try:
-            # docker-py 7.x logs() strips stream-type from the multiplexed header.
-            # Use attach_socket + frames_iter_no_tty to preserve stdout/stderr identity.
-            from docker.utils.socket import frames_iter_no_tty, STDERR
-            sock = container.client.api.attach_socket(
-                container.id,
-                params={'logs': 1, 'stream': 1, 'stdout': 1, 'stderr': 1, 'follow': 1}
+        # docker-py 7.x logs() strips the Docker multiplexed stream-type header and
+        # does not support demux=True. Workaround: open two separate streams, one
+        # filtered to stdout-only and one to stderr-only, so the label is known.
+        threads = []
+        for only_stdout in (True, False):
+            t = threading.Thread(
+                target=self._stream_one,
+                args=(container, only_stdout),
+                daemon=True,
             )
-            for stream_id, data in frames_iter_no_tty(sock):
+            t.start()
+            threads.append(t)
+        for t in threads:
+            t.join()
+
+    def _stream_one(self, container, only_stdout: bool):
+        stream_label = "stdout" if only_stdout else "stderr"
+        try:
+            log_stream = container.client.api.logs(
+                container.id, stream=True, follow=True,
+                stdout=only_stdout, stderr=not only_stdout,
+            )
+            for chunk in log_stream:
                 if self._stop_event.is_set():
                     break
-                stream = "stderr" if stream_id == STDERR else "stdout"
-                for raw_line in data.decode('utf-8', errors='replace').splitlines():
+                for raw_line in chunk.decode('utf-8', errors='replace').splitlines():
                     line = raw_line.rstrip('\r')
                     with self._lock:
-                        self.logs_buffer.append((line, stream))
+                        self.logs_buffer.append((line, stream_label))
                         if len(self.logs_buffer) >= self.batch_size:
                             self._flush_logs()
         except Exception as e:
-            logger.error(f"Error streaming logs for step {self.step_id}: {e}")
+            logger.error(f"Error streaming {stream_label} for step {self.step_id}: {e}")
 
     def _flush_logs(self):
         logs_to_send = []
