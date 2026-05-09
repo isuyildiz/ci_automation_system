@@ -397,8 +397,12 @@ export default function RepoPipelinePage() {
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-gray-300 text-xs font-mono">
-                        {pipeline.triggered_by_username ?? <span className="text-gray-600">—</span>}
+                      <td className="px-4 py-3 text-xs font-mono">
+                        {pipeline.triggered_by_username
+                          ? <span className="text-gray-300">{pipeline.triggered_by_username}</span>
+                          : pipeline.trigger_type === 'webhook'
+                            ? <span className="text-gray-500">Sistem</span>
+                            : <span className="text-gray-600">—</span>}
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs">
                         {pipeline.trigger_type === 'webhook' ? '🔗 Webhook' : 'Manuel'}

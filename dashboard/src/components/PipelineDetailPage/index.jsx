@@ -158,9 +158,9 @@ export default function PipelineDetailPage() {
             {pipeline.commit_author && (
               <MetaRow label="Yazar">{pipeline.commit_author}</MetaRow>
             )}
-            {pipeline.triggered_by_username && (
-              <MetaRow label="Tetikleyen">{pipeline.triggered_by_username}</MetaRow>
-            )}
+            <MetaRow label="Tetikleyen">
+              {pipeline.triggered_by_username || (pipeline.trigger_type === 'webhook' ? 'Sistem' : '—')}
+            </MetaRow>
             <MetaRow label="Tetikleme">
               {pipeline.trigger_type === 'webhook' ? '🔗 Webhook' : 'Manuel'}
             </MetaRow>
