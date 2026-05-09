@@ -10,8 +10,8 @@ class UserRepository:
         result = await session.execute(select(User).where(User.username == username))
         return result.scalar_one_or_none()
 
-    async def create(self, session: AsyncSession, username: str, hashed_password: str) -> User:
-        user = User(username=username, hashed_password=hashed_password)
+    async def create(self, session: AsyncSession, username: str, hashed_password: str, email: str | None = None, role: str = "developer") -> User:
+        user = User(username=username, hashed_password=hashed_password, email=email, role=role)
         session.add(user)
         await session.flush()
         await session.refresh(user)

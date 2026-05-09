@@ -34,8 +34,8 @@ api.interceptors.response.use(
 export const loginUser = (username, password) =>
   api.post('/auth/login', { username, password });
 
-export const registerUser = (username, password) =>
-  api.post('/auth/register', { username, password });
+export const registerUser = (username, password, email = null) =>
+  api.post('/auth/register', { username, password, ...(email ? { email } : {}) });
 
 // ── Pipelines ────────────────────────────────────
 export const getPipelines = (params = {}) =>
@@ -55,6 +55,9 @@ export const triggerPipeline = (repoUrl, branch, teamId = null) =>
 
 export const stopPipeline = (id) =>
   api.post(`/pipelines/${id}/stop`);
+
+export const deletePipeline = (id) =>
+  api.delete(`/pipelines/${id}`);
 
 export const getPipelineLogs = (id, params = {}) =>
   api.get(`/pipelines/${id}/logs`, { params });

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { formatApiError, formatDate, formatDuration, getPipelines, getRepositories } from '../../services/api';
+import { deletePipeline, formatApiError, formatDate, formatDuration, getPipelines, getRepositories } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import StatusBadge from '../StatusBadge';
 import TriggerForm from '../TriggerForm';
@@ -144,6 +144,7 @@ export default function RepoPipelinePage() {
                 <th className="text-left px-4 py-3">Tetikleme</th>
                 <th className="text-left px-4 py-3">Süre</th>
                 <th className="text-left px-4 py-3">Başlangıç</th>
+                <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
@@ -173,6 +174,25 @@ export default function RepoPipelinePage() {
                   </td>
                   <td className="px-4 py-3 text-gray-500 text-xs">
                     {formatDate(pipeline.started_at)}
+                  </td>
+                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                    {!['QUEUED', 'RUNNING'].includes(pipeline.status) && (
+                      <button
+                        onClick={async () => {
+                          if (!window.confirm(`Pipeline ${pipeline.id.slice(0, 8)} silinsin mi?`)) return;
+                          try {
+                            await deletePipeline(pipeline.id);
+                            setPipelines(prev => prev.filter(p => p.id !== pipeline.id));
+                            setTotal(prev => prev - 1);
+                          } catch (err) {
+                            setError(formatApiError(err));
+                          }
+                        }}
+                        className="text-xs text-red-500 hover:text-red-400 transition-colors"
+                      >
+                        Sil
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

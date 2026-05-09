@@ -12,6 +12,13 @@ function ProtectedRoute({ children }) {
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 
+function AdminRoute({ children }) {
+  const { isAuthenticated, user } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (user?.role !== 'admin') return <Navigate to="/repositories" replace />;
+  return children;
+}
+
 function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -47,6 +54,13 @@ function Navbar() {
         <span className="text-sm text-gray-500">
           {user?.username || 'Kullanıcı'}
         </span>
+        {user?.role && (
+          <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+            user.role === 'admin' ? 'bg-purple-900 text-purple-300' : 'bg-dark-700 text-gray-500'
+          }`}>
+            {user.role}
+          </span>
+        )}
         <button
           onClick={handleLogout}
           className="text-sm text-gray-500 hover:text-red-400 transition-colors"

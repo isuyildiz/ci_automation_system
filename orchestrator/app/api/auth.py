@@ -19,7 +19,7 @@ async def login(body: LoginRequest, session: AsyncSession = Depends(get_db)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"code": "UNAUTHORIZED", "message": "Kullanıcı adı veya şifre hatalı"},
         )
-    token = create_access_token(subject=user.id, username=user.username)
+    token = create_access_token(subject=user.id, username=user.username, role=user.role.value)
     return TokenResponse(
         access_token=token,
         expires_in=settings.jwt_expire_minutes * 60,
@@ -34,9 +34,9 @@ async def register(body: RegisterRequest, session: AsyncSession = Depends(get_db
             status_code=status.HTTP_409_CONFLICT,
             detail={"code": "USERNAME_TAKEN", "message": "Bu kullanıcı adı zaten alınmış"},
         )
-    user = await _user_repo.create(session, body.username, hash_password(body.password))
+    user = await _user_repo.create(session, body.username, hash_password(body.password), email=body.email, role=body.role.value)
     await session.commit()
-    return RegisterResponse(id=str(user.id), username=user.username)
+    return RegisterResponse(id=str(user.id), username=user.username, email=user.email, role=user.role)
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -55,7 +55,7 @@ async def refresh(body: TokenRefreshRequest, session: AsyncSession = Depends(get
     if user is None:
         raise exc
 
-    token = create_access_token(subject=user.id, username=user.username)
+    token = create_access_token(subject=user.id, username=user.username, role=user.role.value)
     return TokenResponse(
         access_token=token,
         expires_in=settings.jwt_expire_minutes * 60,

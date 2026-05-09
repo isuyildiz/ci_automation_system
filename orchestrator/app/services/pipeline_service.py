@@ -150,6 +150,16 @@ class PipelineService:
         await redis.set(f"pipeline_stop:{pipeline_id}", "1", ex=3600)
         return updated
 
+    async def delete(self, session: AsyncSession, pipeline_id: str, user: User | None = None) -> None:
+        pipeline = await self.get(session, pipeline_id, user=user)
+        if pipeline.status in (PipelineStatus.QUEUED, PipelineStatus.RUNNING):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"code": "INVALID_STATE", "message": "Aktif pipeline silinemez. Önce durdurun."},
+            )
+        await _pipeline_repo.delete(session, pipeline_id)
+        await session.commit()
+
     async def get_logs(
         self,
         session: AsyncSession,

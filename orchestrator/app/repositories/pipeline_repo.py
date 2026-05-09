@@ -1,10 +1,12 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import select, func, update, or_
+from sqlalchemy import select, func, update, or_, delete as sql_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.log import Log
 from app.models.pipeline import Pipeline, PipelineStatus
+from app.models.step import Step
 from app.models.team import TeamMember
 
 
@@ -84,6 +86,17 @@ class PipelineRepository:
             select(func.count()).where(Pipeline.status == PipelineStatus.RUNNING)
         )
         return result.scalar_one()
+
+    async def delete(self, session: AsyncSession, pipeline_id: str) -> None:
+        step_result = await session.execute(
+            select(Step.id).where(Step.pipeline_id == pipeline_id)
+        )
+        step_ids = list(step_result.scalars().all())
+        if step_ids:
+            await session.execute(sql_delete(Log).where(Log.step_id.in_(step_ids)))
+            await session.execute(sql_delete(Step).where(Step.pipeline_id == pipeline_id))
+        await session.execute(sql_delete(Pipeline).where(Pipeline.id == pipeline_id))
+        await session.flush()
 
     async def get_active_by_repo_branch(
         self, session: AsyncSession, repo_url: str, branch: str

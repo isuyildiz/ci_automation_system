@@ -70,6 +70,15 @@ async def stop_pipeline(
     return {"pipeline_id": pipeline.id, "status": pipeline.status}
 
 
+@router.delete("/{pipeline_id}", status_code=204)
+async def delete_pipeline(
+    pipeline_id: str,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    await _service.delete(session, pipeline_id, user=current_user)
+
+
 @router.get("/{pipeline_id}/logs", response_model=PaginatedResponse[LogLineResponse])
 async def get_logs(
     pipeline_id: str,

@@ -7,7 +7,7 @@ export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [tab, setTab] = useState('login'); // 'login' | 'register'
-  const [form, setForm] = useState({ username: '', password: '', confirm: '' });
+  const [form, setForm] = useState({ username: '', email: '', password: '', confirm: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -18,7 +18,7 @@ export default function LoginPage() {
 
   const switchTab = (next) => {
     setTab(next);
-    setForm({ username: '', password: '', confirm: '' });
+    setForm({ username: '', email: '', password: '', confirm: '' });
     setError('');
   };
 
@@ -55,7 +55,7 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      await registerUser(form.username.trim(), form.password);
+      await registerUser(form.username.trim(), form.password, form.email.trim() || null);
       await login(form.username.trim(), form.password);
       navigate('/repositories', { replace: true });
     } catch (err) {
@@ -139,6 +139,20 @@ export default function LoginPage() {
               />
             </div>
 
+            {tab === 'register' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">E-posta <span className="text-gray-600">(opsiyonel)</span></label>
+                <input
+                  type="email"
+                  autoComplete="email"
+                  value={form.email}
+                  onChange={update('email')}
+                  className="w-full bg-dark-800 border border-dark-600 text-gray-100 rounded-md px-3 py-2 text-sm
+                             focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  placeholder="ornek@email.com"
+                />
+              </div>
+            )}
             {tab === 'register' && (
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1">Şifre Tekrar</label>

@@ -18,8 +18,3 @@ steps:
 branches:
   - main
   - develop
-  - feature/integration-1-2
-  - feature/repo-manager
-  - feature/runner-initial
-  - feature/web-dashboard
-  - feature/orchestrator-initial
