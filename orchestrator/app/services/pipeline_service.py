@@ -6,7 +6,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.models.pipeline import Pipeline, PipelineStatus
+from app.models.pipeline import Pipeline, PipelineStatus, TriggerType
 from app.models.step import StepName, StepStatus
 from app.models.user import User
 from app.repositories.log_repo import LogRepository
@@ -143,7 +143,15 @@ class PipelineService:
         if user is None:
             return
         if pipeline.triggered_by_id is None:
-            return  # Eski pipeline: üyelik yeterliydi, self.get() zaten doğruladı
+            if pipeline.trigger_type == TriggerType.webhook:
+                # Webhook pipeline: sahip yok, sadece owner yönetebilir
+                if pipeline.repo_id and await _member_repo.is_owner(session, pipeline.repo_id, user.id):
+                    return
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail={"code": "FORBIDDEN", "message": "Webhook pipeline'ları yalnızca repo owner'ı tarafından yönetilebilir."},
+                )
+            return  # Eski pipeline (migration öncesi): üyelik yeterliydi, self.get() zaten doğruladı
         if pipeline.triggered_by_id == user.id:
             return
         if pipeline.repo_id and await _member_repo.is_owner(session, pipeline.repo_id, user.id):

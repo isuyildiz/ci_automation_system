@@ -382,6 +382,49 @@ async def test_triggerer_can_stop_own_pipeline(app_client):
     assert resp.status_code == 200
 
 
+# ── Webhook pipeline yetki kontrolü ─────────────────────────────────────────
+
+async def create_webhook_pipeline(client):
+    """Internal trigger endpoint üzerinden webhook pipeline oluşturur (triggered_by_id=NULL)."""
+    resp = await client.post("/api/v1/internal/pipelines/trigger", json={
+        "repo_url": REPO_URL, "branch": BRANCH, "trigger_type": "webhook",
+    })
+    assert resp.status_code == 201
+    return resp.json()
+
+
+@pytest.mark.asyncio
+async def test_member_cannot_stop_webhook_pipeline(app_client, other_member_client):
+    """Repo member webhook pipeline'ını durduramaz — sahip yok, sadece owner yönetebilir."""
+    repos = await app_client.get("/api/v1/repositories")
+    repo_id = repos.json()[0]["id"]
+    other_client, other_username = other_member_client
+    await app_client.post(f"/api/v1/repositories/{repo_id}/members", json={"username": other_username, "role": "member"})
+
+    created = await create_webhook_pipeline(app_client)
+    pipeline_id = created["id"]
+
+    resp = await other_client.post(f"/api/v1/pipelines/{pipeline_id}/stop")
+    assert resp.status_code == 403
+    assert resp.json()["detail"]["code"] == "FORBIDDEN"
+
+
+@pytest.mark.asyncio
+async def test_owner_can_stop_webhook_pipeline(app_client, other_member_client):
+    """Repo owner webhook pipeline'ını durdurabilir."""
+    repos = await app_client.get("/api/v1/repositories")
+    repo_id = repos.json()[0]["id"]
+    other_client, other_username = other_member_client
+    await app_client.post(f"/api/v1/repositories/{repo_id}/members", json={"username": other_username, "role": "owner"})
+
+    created = await create_webhook_pipeline(app_client)
+    pipeline_id = created["id"]
+
+    resp = await other_client.post(f"/api/v1/pipelines/{pipeline_id}/stop")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "STOPPED"
+
+
 # ── Kimlik doğrulama kontrolü ─────────────────────────────────────────────────
 
 @pytest.mark.asyncio
