@@ -37,10 +37,13 @@ def repo_name_from_url(repo_url: str) -> str:
     return repo_name.removesuffix(".git") or "repository"
 
 
-def clone_repository(repo_url: str, destination: str) -> str:
+def clone_repository(repo_url: str, destination: str, branch: str | None = None) -> str:
     Path(destination).parent.mkdir(parents=True, exist_ok=True)
     auth_url = _inject_token(repo_url)
-    run_git_command("clone", lambda: Repo.clone_from(auth_url, destination))
+    kwargs = {"depth": 1}
+    if branch:
+        kwargs["branch"] = branch
+    run_git_command("clone", lambda: Repo.clone_from(auth_url, destination, **kwargs))
     return destination
 
 
@@ -62,7 +65,9 @@ def checkout_commit(repo_path: str, commit_hash: str) -> None:
 def ensure_repository_state(repo_url: str, branch: str, workspace: str) -> str:
     workspace_path = Path(workspace)
     if not workspace_path.exists():
-        clone_repository(repo_url, workspace)
+        # Shallow clone: yalnızca hedef branch'in son commit'ini indir (~10x hızlı)
+        clone_repository(repo_url, workspace, branch=branch)
+        return str(workspace_path)
 
     checkout_branch(workspace, branch)
     pull_latest(workspace)

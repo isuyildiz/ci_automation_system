@@ -1,22 +1,14 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../src/services/api', () => ({
   getRepositories: vi.fn(),
+  getPipelines: vi.fn().mockResolvedValue({ data: { total: 0 } }),
   createRepository: vi.fn(),
+  deleteRepository: vi.fn(),
   formatApiError: (err) => err?.message || 'Hata',
   formatDate: (d) => d || '—',
-}));
-
-vi.mock('../src/context/AuthContext', () => ({
-  useAuth: () => ({
-    user: { username: 'admin' },
-    teams: [{ id: 'team-001', name: 'CI Ekibi' }],
-    isAuthenticated: true,
-    login: vi.fn(),
-    logout: vi.fn(),
-  }),
 }));
 
 import { getRepositories } from '../src/services/api';
@@ -25,17 +17,15 @@ import RepositoriesPage from '../src/components/RepositoriesPage';
 const mockRepos = [
   {
     id: 'r1',
-    url: 'https://github.com/u/personal',
-    owner_type: 'user',
-    owner_id: 'user-001',
+    url: 'https://github.com/u/owned-repo',
+    my_role: 'owner',
     default_branch: 'main',
     created_at: '2026-01-01',
   },
   {
     id: 'r2',
-    url: 'https://github.com/t/teamrepo',
-    owner_type: 'team',
-    owner_id: 'team-001',
+    url: 'https://github.com/t/member-repo',
+    my_role: 'member',
     default_branch: 'main',
     created_at: '2026-01-01',
   },
@@ -44,43 +34,36 @@ const mockRepos = [
 describe('RepositoriesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getRepositories.mockResolvedValue({ data: { items: mockRepos } });
+    getRepositories.mockResolvedValue({ data: mockRepos });
   });
 
-  it('personal_repos_section_visible', async () => {
+  it('owner_section_visible', async () => {
     render(<MemoryRouter><RepositoriesPage /></MemoryRouter>);
     await waitFor(() => {
-      expect(screen.getByText('Kişisel Repolarım')).toBeInTheDocument();
+      expect(screen.getByText('Sahip Olduğum Repolar')).toBeInTheDocument();
     });
   });
 
-  it('team_repos_section_visible', async () => {
+  it('member_section_visible', async () => {
     render(<MemoryRouter><RepositoriesPage /></MemoryRouter>);
     await waitFor(() => {
-      const matches = screen.getAllByText(/CI Ekibi/);
-      expect(matches.length).toBeGreaterThan(0);
+      expect(screen.getByText('Üye Olduğum Repolar')).toBeInTheDocument();
     });
   });
 
-  it('personal_repo_url_shown', async () => {
+  it('owned_repo_url_shown', async () => {
     render(<MemoryRouter><RepositoriesPage /></MemoryRouter>);
     await waitFor(() => {
-      expect(screen.getByText('u/personal')).toBeInTheDocument();
+      expect(screen.getByText('u/owned-repo')).toBeInTheDocument();
     });
   });
 
-  it('repo_card_click_navigates', async () => {
-    let navigatedTo = null;
-    render(
-      <MemoryRouter initialEntries={['/repositories']}>
-        <RepositoriesPage />
-      </MemoryRouter>
-    );
+  it('role_badges_rendered', async () => {
+    render(<MemoryRouter><RepositoriesPage /></MemoryRouter>);
     await waitFor(() => {
-      expect(screen.getByText('u/personal')).toBeInTheDocument();
+      expect(screen.getByText('Owner')).toBeInTheDocument();
+      expect(screen.getByText('Member')).toBeInTheDocument();
     });
-    const card = screen.getByText('u/personal').closest('[class*="cursor-pointer"]');
-    expect(card).toBeTruthy();
   });
 
   it('add_repo_button_exists', async () => {

@@ -1,13 +1,17 @@
 import httpx
 from fastapi import HTTPException, status
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.repository_member import RepoRole
+from app.repositories.pipeline_repo import PipelineRepository
+from app.repositories.repository_member_repo import RepositoryMemberRepository
 from app.repositories.repository_repo import RepositoryRepository
-from app.repositories.team_repo import TeamRepository
 from app.schemas.repository import RepositoryCreate
 
 _repo = RepositoryRepository()
-_team_repo = TeamRepository()
+_member_repo = RepositoryMemberRepository()
+_pipeline_repo = PipelineRepository()
 
 _GITHUB_PREFIX = "https://github.com/"
 
@@ -68,27 +72,41 @@ class RepositoryService:
                 status_code=status.HTTP_409_CONFLICT,
                 detail={"code": "ALREADY_RUNNING", "message": "Bu URL zaten kayıtlı"},
             )
-        team_id = data.owner_id if data.owner_type == 'team' else None
         repo = await _repo.create(session, {
             "url":            str(data.url),
             "default_branch": data.default_branch,
             "webhook_secret": data.webhook_secret,
-            "user_id":        current_user_id,
-            "team_id":        team_id,
         })
+        await _member_repo.add(session, repo.id, current_user_id, RepoRole.owner.value)
         await session.commit()
         return repo
 
     async def list(self, session: AsyncSession, current_user_id: str):
-        teams = await _team_repo.get_all_for_user(session, current_user_id)
-        team_ids = [t.id for t in teams]
-        return await _repo.get_all(session, current_user_id, team_ids)
+        return await _repo.list_for_user(session, current_user_id)
 
-    async def delete(self, session: AsyncSession, repo_id: str):
-        deleted = await _repo.delete(session, repo_id)
-        if not deleted:
+    async def delete(self, session: AsyncSession, repo_id: str, current_user_id: str, redis: Redis):
+        repo = await _repo.get_by_id(session, repo_id)
+        if not repo:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail={"code": "PIPELINE_NOT_FOUND", "message": "Depo bulunamadı"},
+                detail={"code": "NOT_FOUND", "message": "Depo bulunamadı"},
             )
+        if not await _member_repo.is_owner(session, repo_id, current_user_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"code": "FORBIDDEN", "message": "Bu depoyu silme yetkiniz yok (yalnızca owner silebilir)"},
+            )
+
+        # Aktif pipeline'lar için runner'a stop sinyali gönder
+        active = await _pipeline_repo.list_active_for_repo(session, repo_id)
+        for p in active:
+            await redis.set(f"pipeline_stop:{p.id}", "1", ex=3600)
+
+        # Bu repoya ait tüm pipeline'ları sil (steps + logs cascade ile temizlenir)
+        pipeline_ids = await _pipeline_repo.list_ids_for_repo(session, repo_id)
+        for pid in pipeline_ids:
+            await _pipeline_repo.delete(session, pid)
+
+        # Repository'yi sil (üyelikler FK CASCADE ile temizlenir)
+        await _repo.delete(session, repo_id)
         await session.commit()

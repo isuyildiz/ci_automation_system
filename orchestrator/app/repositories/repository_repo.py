@@ -1,7 +1,8 @@
-from sqlalchemy import select, delete, or_
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.repository import Repository
+from app.models.repository_member import RepositoryMember
 
 
 class RepositoryRepository:
@@ -21,14 +22,13 @@ class RepositoryRepository:
         result = await session.execute(select(Repository).where(Repository.url == url))
         return result.scalar_one_or_none()
 
-    async def get_all(self, session: AsyncSession, user_id: str, team_ids: list[str]) -> list[Repository]:
-        conditions = [
-            Repository.user_id == user_id,
-            Repository.user_id.is_(None),  # migration öncesi eklenen repolar herkese görünür
-        ]
-        if team_ids:
-            conditions.append(Repository.team_id.in_(team_ids))
-        stmt = select(Repository).where(or_(*conditions)).order_by(Repository.created_at.desc())
+    async def list_for_user(self, session: AsyncSession, user_id: str) -> list[Repository]:
+        stmt = (
+            select(Repository)
+            .join(RepositoryMember, RepositoryMember.repo_id == Repository.id)
+            .where(RepositoryMember.user_id == user_id)
+            .order_by(Repository.created_at.desc())
+        )
         result = await session.execute(stmt)
         return list(result.scalars().all())
 

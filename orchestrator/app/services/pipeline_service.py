@@ -11,16 +11,16 @@ from app.models.step import StepName, StepStatus
 from app.models.user import User
 from app.repositories.log_repo import LogRepository
 from app.repositories.pipeline_repo import PipelineRepository
+from app.repositories.repository_member_repo import RepositoryMemberRepository
 from app.repositories.repository_repo import RepositoryRepository
 from app.repositories.step_repo import StepRepository
-from app.repositories.team_repo import TeamRepository
 from app.schemas.pipeline import PipelineCreate
 
 _pipeline_repo = PipelineRepository()
 _step_repo = StepRepository()
 _log_repo = LogRepository()
 _repo_repo = RepositoryRepository()
-_team_repo = TeamRepository()
+_member_repo = RepositoryMemberRepository()
 
 _STEP_ORDER = [
     (StepName.install, 1),
@@ -58,21 +58,22 @@ class PipelineService:
             )
 
         repo = await _repo_repo.get_by_url(session, str(data.repo_url))
+        if not repo:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "REPO_NOT_FOUND", "message": "Bu URL için kayıtlı repository yok. Önce repoyu sisteme ekleyin."},
+            )
 
-        # team_id: önce request'ten al, yoksa repo'dan devral
-        team_id = data.team_id or (repo.team_id if repo else None)
-
-        # Kullanıcı varsa takım üyeliğini doğrula
-        if user and team_id:
-            if not await _team_repo.is_member(session, team_id, user.id):
+        # Kullanıcı varsa repo üyeliğini doğrula
+        if user:
+            if not await _member_repo.is_member(session, repo.id, user.id):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail={"code": "FORBIDDEN", "message": "Bu takımın üyesi değilsiniz"},
+                    detail={"code": "FORBIDDEN", "message": "Bu deponun üyesi değilsiniz"},
                 )
 
         pipeline = await _pipeline_repo.create(session, {
-            "team_id":       team_id,
-            "repo_id":       repo.id if repo else None,
+            "repo_id":       repo.id,
             "repo_url":      str(data.repo_url),
             "branch":        data.branch,
             "commit_hash":   data.commit_hash,
@@ -112,8 +113,8 @@ class PipelineService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"code": "PIPELINE_NOT_FOUND", "message": "Pipeline bulunamadı"},
             )
-        if user and pipeline.team_id:
-            if not await _team_repo.is_member(session, pipeline.team_id, user.id):
+        if user and pipeline.repo_id:
+            if not await _member_repo.is_member(session, pipeline.repo_id, user.id):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail={"code": "FORBIDDEN", "message": "Bu pipeline'a erişim yetkiniz yok"},

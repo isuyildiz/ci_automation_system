@@ -27,7 +27,6 @@ class PipelineCreate(BaseModel):
     """POST /api/v1/pipelines — hem manuel hem webhook tetiklemesi için."""
     repo_url: HttpUrl
     branch: str
-    team_id: str | None = None
     commit_hash: str | None = None
     commit_msg: str | None = None
     commit_author: str | None = None
@@ -38,7 +37,6 @@ class PipelineCreate(BaseModel):
 class PipelineListItem(BaseModel):
     """GET /api/v1/pipelines listesindeki her eleman."""
     id: str
-    team_id: str | None
     repo_id: str | None
     repo_url: str
     branch: str
@@ -55,7 +53,6 @@ class PipelineListItem(BaseModel):
 class PipelineDetailResponse(BaseModel):
     """GET /api/v1/pipelines/{id} — adımlar dahil tam detay."""
     id: str
-    team_id: str | None
     repo_id: str | None
     repo_url: str
     branch: str

@@ -50,8 +50,8 @@ export const getPipelinesByRepo = (repoId) =>
 export const createPipeline = (repoUrl, branch) =>
   api.post('/pipelines', { repo_url: repoUrl, branch });
 
-export const triggerPipeline = (repoUrl, branch, teamId = null) =>
-  axios.post('/trigger', { repo_url: repoUrl, branch, team_id: teamId }, { timeout: 60000 });
+export const triggerPipeline = (repoUrl, branch) =>
+  axios.post('/trigger', { repo_url: repoUrl, branch }, { timeout: 180000 });
 
 export const stopPipeline = (id) =>
   api.post(`/pipelines/${id}/stop`);
@@ -65,33 +65,6 @@ export const getPipelineLogs = (id, params = {}) =>
 export const getPipelineReport = (id) =>
   api.get(`/pipelines/${id}/report`);
 
-// ── Teams ─────────────────────────────────────────
-export const getTeams = () =>
-  api.get('/teams');
-
-export const createTeam = (name) =>
-  api.post('/teams', { name });
-
-export const getTeamDetail = (teamId) =>
-  api.get(`/teams/${teamId}`);
-
-export const getTeamMembers = (teamId) =>
-  api.get(`/teams/${teamId}/members`);
-
-export const getTeamRepositories = async (teamId) => {
-  try {
-    return await api.get(`/teams/${teamId}/repositories`);
-  } catch {
-    return { data: [] };
-  }
-};
-
-export const addTeamMember = (teamId, username) =>
-  api.post(`/teams/${teamId}/members`, { username });
-
-export const removeTeamMember = (teamId, userId) =>
-  api.delete(`/teams/${teamId}/members/${userId}`);
-
 // ── Repositories ─────────────────────────────────
 export const getRepositories = (params = {}) =>
   api.get('/repositories', { params });
@@ -101,6 +74,19 @@ export const createRepository = (data) =>
 
 export const deleteRepository = (id) =>
   api.delete(`/repositories/${id}`);
+
+// ── Repository Members ───────────────────────────
+export const getRepoMembers = (repoId) =>
+  api.get(`/repositories/${repoId}/members`);
+
+export const addRepoMember = (repoId, username, role = 'member') =>
+  api.post(`/repositories/${repoId}/members`, { username, role });
+
+export const updateRepoMemberRole = (repoId, userId, role) =>
+  api.patch(`/repositories/${repoId}/members/${userId}`, { role });
+
+export const removeRepoMember = (repoId, userId) =>
+  api.delete(`/repositories/${repoId}/members/${userId}`);
 
 // ── Helpers ──────────────────────────────────────
 export const formatApiError = (error) => {

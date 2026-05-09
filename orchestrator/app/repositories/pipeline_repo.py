@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import select, func, update, or_, delete as sql_delete
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,8 +6,8 @@ from sqlalchemy.orm import selectinload
 
 from app.models.log import Log
 from app.models.pipeline import Pipeline, PipelineStatus
+from app.models.repository_member import RepositoryMember
 from app.models.step import Step
-from app.models.team import TeamMember
 
 
 class PipelineRepository:
@@ -42,11 +42,11 @@ class PipelineRepository:
         if repo_id:
             query = query.where(Pipeline.repo_id == repo_id)
         if user_id:
-            user_teams = select(TeamMember.team_id).where(TeamMember.user_id == user_id)
+            user_repos = select(RepositoryMember.repo_id).where(RepositoryMember.user_id == user_id)
             query = query.where(
                 or_(
-                    Pipeline.team_id.is_(None),
-                    Pipeline.team_id.in_(user_teams),
+                    Pipeline.repo_id.is_(None),
+                    Pipeline.repo_id.in_(user_repos),
                 )
             )
 
@@ -97,6 +97,21 @@ class PipelineRepository:
             await session.execute(sql_delete(Step).where(Step.pipeline_id == pipeline_id))
         await session.execute(sql_delete(Pipeline).where(Pipeline.id == pipeline_id))
         await session.flush()
+
+    async def list_active_for_repo(self, session: AsyncSession, repo_id: str) -> list[Pipeline]:
+        result = await session.execute(
+            select(Pipeline).where(
+                Pipeline.repo_id == repo_id,
+                Pipeline.status.in_([PipelineStatus.QUEUED, PipelineStatus.RUNNING]),
+            )
+        )
+        return list(result.scalars().all())
+
+    async def list_ids_for_repo(self, session: AsyncSession, repo_id: str) -> list[str]:
+        result = await session.execute(
+            select(Pipeline.id).where(Pipeline.repo_id == repo_id)
+        )
+        return list(result.scalars().all())
 
     async def get_active_by_repo_branch(
         self, session: AsyncSession, repo_url: str, branch: str

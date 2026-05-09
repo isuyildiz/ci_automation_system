@@ -4,19 +4,10 @@ import LoginPage from './pages/LoginPage';
 import PipelineDetailPage from './components/PipelineDetailPage';
 import RepositoriesPage from './components/RepositoriesPage';
 import RepoPipelinePage from './components/RepoPipelinePage';
-import TeamsPage from './components/TeamsPage';
-import TeamDetailPage from './components/TeamDetailPage';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuth();
   return isAuthenticated ? children : <Navigate to="/login" replace />;
-}
-
-function AdminRoute({ children }) {
-  const { isAuthenticated, user } = useAuth();
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (user?.role !== 'admin') return <Navigate to="/repositories" replace />;
-  return children;
 }
 
 function Navbar() {
@@ -43,24 +34,11 @@ function Navbar() {
       >
         Repositories
       </Link>
-      <Link
-        to="/teams"
-        className="text-sm text-gray-400 hover:text-gray-100 transition-colors"
-      >
-        Takımlar
-      </Link>
 
       <div className="flex items-center gap-3 ml-4 border-l border-dark-600 pl-4">
         <span className="text-sm text-gray-500">
           {user?.username || 'Kullanıcı'}
         </span>
-        {user?.role && (
-          <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
-            user.role === 'admin' ? 'bg-purple-900 text-purple-300' : 'bg-dark-700 text-gray-500'
-          }`}>
-            {user.role}
-          </span>
-        )}
         <button
           onClick={handleLogout}
           className="text-sm text-gray-500 hover:text-red-400 transition-colors"
@@ -107,22 +85,6 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Layout><PipelineDetailPage /></Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/teams"
-          element={
-            <ProtectedRoute>
-              <Layout><TeamsPage /></Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/teams/:teamId"
-          element={
-            <ProtectedRoute>
-              <Layout><TeamDetailPage /></Layout>
             </ProtectedRoute>
           }
         />

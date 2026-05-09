@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { triggerPipeline, formatApiError } from '../../services/api';
 
-export default function TriggerForm({ repoUrl, teamId = null, onSuccess, onClose }) {
+export default function TriggerForm({ repoUrl, onSuccess, onClose }) {
   const [form, setForm] = useState({ branch: 'main' });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -21,7 +21,7 @@ export default function TriggerForm({ repoUrl, teamId = null, onSuccess, onClose
     setErrors({});
     setLoading(true);
     try {
-      const res = await triggerPipeline(repoUrl, form.branch.trim(), teamId);
+      const res = await triggerPipeline(repoUrl, form.branch.trim());
       onSuccess?.(res.data);
     } catch (err) {
       setApiError(formatApiError(err));

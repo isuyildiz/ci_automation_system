@@ -1,30 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createRepository, deleteRepository, formatApiError, getPipelines, getRepositories } from '../../services/api';
-import { useAuth } from '../../context/AuthContext';
 
 function repoShortName(url) {
   return url?.replace(/^https?:\/\/github\.com\//, '') || url || '—';
 }
 
-function AddRepoModal({ teams, user, onSuccess, onClose }) {
-  const [form, setForm] = useState({
-    url: '',
-    default_branch: 'main',
-    webhook_secret: '',
-    owner_type: 'user',
-    owner_id: user?.sub ?? '',
-  });
+function AddRepoModal({ onSuccess, onClose }) {
+  const [form, setForm] = useState({ url: '', default_branch: 'main', webhook_secret: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const setOwner = (value) => {
-    if (value === 'user') {
-      setForm(f => ({ ...f, owner_type: 'user', owner_id: 'user-001' }));
-    } else {
-      setForm(f => ({ ...f, owner_type: 'team', owner_id: value }));
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,8 +22,6 @@ function AddRepoModal({ teams, user, onSuccess, onClose }) {
         url: form.url.trim(),
         default_branch: form.default_branch.trim() || 'main',
         webhook_secret: form.webhook_secret.trim(),
-        owner_type: form.owner_type,
-        owner_id: form.owner_id,
       });
       onSuccess(res.data);
     } catch (err) {
@@ -51,7 +34,8 @@ function AddRepoModal({ teams, user, onSuccess, onClose }) {
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
       <div className="bg-dark-900 border border-dark-600 rounded-lg w-full max-w-md p-6 shadow-xl">
-        <h2 className="text-base font-semibold text-gray-100 mb-4">Yeni Repository Ekle</h2>
+        <h2 className="text-base font-semibold text-gray-100 mb-1">Yeni Repository Ekle</h2>
+        <p className="text-xs text-gray-500 mb-4">Bu repoyu ekleyen kişi otomatik olarak owner olur.</p>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label className="block text-xs text-gray-400 mb-1">Repository URL</label>
@@ -86,31 +70,6 @@ function AddRepoModal({ teams, user, onSuccess, onClose }) {
                          focus:outline-none focus:border-blue-500"
             />
           </div>
-          <div>
-            <label className="block text-xs text-gray-400 mb-2">Sahip</label>
-            <div className="flex flex-col gap-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio" name="owner"
-                  checked={form.owner_type === 'user'}
-                  onChange={() => setOwner('user')}
-                  className="accent-blue-500"
-                />
-                <span className="text-sm text-gray-300">Kişisel</span>
-              </label>
-              {teams.map((team) => (
-                <label key={team.id} className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio" name="owner"
-                    checked={form.owner_type === 'team' && form.owner_id === team.id}
-                    onChange={() => setOwner(team.id)}
-                    className="accent-blue-500"
-                  />
-                  <span className="text-sm text-gray-300">{team.name}</span>
-                </label>
-              ))}
-            </div>
-          </div>
 
           {error && <p className="text-red-400 text-sm">{error}</p>}
 
@@ -131,41 +90,51 @@ function AddRepoModal({ teams, user, onSuccess, onClose }) {
   );
 }
 
-function RepoCard({ repo, teamName, pipelineCount, onClick, onDelete }) {
-  const ownerLabel = repo.owner_type === 'user' ? 'Kişisel' : teamName;
+function RoleBadge({ role }) {
+  const isOwner = role === 'owner';
+  return (
+    <span className={`text-xs px-2 py-0.5 rounded-full border ${
+      isOwner
+        ? 'bg-blue-950 text-blue-300 border-blue-800'
+        : 'bg-dark-700 text-gray-400 border-dark-600'
+    }`}>
+      {isOwner ? 'Owner' : 'Member'}
+    </span>
+  );
+}
+
+function RepoCard({ repo, pipelineCount, onClick, onDelete }) {
+  const isOwner = repo.my_role === 'owner';
   return (
     <div
       className="bg-dark-900 border border-dark-600 rounded-lg p-4 hover:border-blue-500/50 hover:bg-dark-800
                  transition-all group relative"
     >
-      <div
-        onClick={onClick}
-        className="cursor-pointer"
-      >
+      <div onClick={onClick} className="cursor-pointer">
         <div className="flex items-start justify-between gap-2">
           <span className="font-mono text-sm text-gray-200 group-hover:text-white transition-colors break-all pr-6">
             {repoShortName(repo.url)}
           </span>
           <span className="text-gray-600 group-hover:text-blue-400 transition-colors text-sm shrink-0">→</span>
         </div>
-        <div className="mt-2 flex items-center gap-2">
-          <span className="text-xs px-2 py-0.5 rounded-full bg-dark-700 text-gray-400 border border-dark-600">
-            {ownerLabel}
-          </span>
+        <div className="mt-2 flex items-center gap-2 flex-wrap">
+          <RoleBadge role={repo.my_role} />
           <span className="text-xs text-gray-600 font-mono">{repo.default_branch}</span>
           {pipelineCount !== undefined && (
             <span className="text-xs text-gray-600 font-mono">{pipelineCount} pipeline</span>
           )}
         </div>
       </div>
-      <button
-        onClick={(e) => { e.stopPropagation(); onDelete(repo); }}
-        className="absolute top-3 right-8 opacity-0 group-hover:opacity-100 transition-opacity
-                   text-gray-600 hover:text-red-400 text-xs px-1.5 py-0.5 rounded"
-        title="Repoyu sil"
-      >
-        ✕
-      </button>
+      {isOwner && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(repo); }}
+          className="absolute top-3 right-8 opacity-0 group-hover:opacity-100 transition-opacity
+                     text-gray-600 hover:text-red-400 text-xs px-1.5 py-0.5 rounded"
+          title="Repoyu sil"
+        >
+          ✕
+        </button>
+      )}
     </div>
   );
 }
@@ -175,14 +144,12 @@ function DeleteConfirmModal({ repo, onConfirm, onCancel, loading, error }) {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
       <div className="bg-dark-900 border border-dark-600 rounded-lg w-full max-w-sm p-6 shadow-xl">
         <h2 className="text-base font-semibold text-gray-100 mb-2">Repoyu Sil</h2>
-        <p className="text-sm text-gray-400 mb-1">
-          Aşağıdaki repository silinecek:
-        </p>
+        <p className="text-sm text-gray-400 mb-1">Aşağıdaki repository silinecek:</p>
         <p className="font-mono text-sm text-gray-200 bg-dark-800 rounded px-3 py-2 mb-4 break-all">
           {repoShortName(repo.url)}
         </p>
         <p className="text-xs text-red-400 mb-4">
-          Bu işlem geri alınamaz. İlişkili pipeline kayıtları korunur.
+          Bu işlem geri alınamaz. Pipeline'lar ve tüm üyelikler de silinir.
         </p>
         {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
         <div className="flex gap-3 justify-end">
@@ -208,7 +175,6 @@ function DeleteConfirmModal({ repo, onConfirm, onCancel, loading, error }) {
 }
 
 export default function RepositoriesPage() {
-  const { teams, user } = useAuth();
   const navigate = useNavigate();
   const [repos, setRepos] = useState([]);
   const [pipelineCounts, setPipelineCounts] = useState({});
@@ -253,18 +219,8 @@ export default function RepositoriesPage() {
 
   useEffect(() => { fetchRepos(); }, []);
 
-  const userRepos = repos.filter(r => r.owner_type === 'user');
-
-  const teamGroups = teams
-    .map(team => ({ team, repos: repos.filter(r => r.owner_type === 'team' && r.owner_id === team.id) }))
-    .filter(g => g.repos.length > 0);
-
-  const knownTeamIds = new Set(teams.map(t => t.id));
-  const unknownTeamRepos = repos.filter(r => r.owner_type === 'team' && !knownTeamIds.has(r.owner_id));
-  const unknownGroups = [...new Set(unknownTeamRepos.map(r => r.owner_id))].map(id => ({
-    team: { id, name: 'Takım Repoları' },
-    repos: unknownTeamRepos.filter(r => r.owner_id === id),
-  }));
+  const ownedRepos = repos.filter(r => r.my_role === 'owner');
+  const memberRepos = repos.filter(r => r.my_role === 'member');
 
   return (
     <div>
@@ -295,18 +251,18 @@ export default function RepositoriesPage() {
         </div>
       ) : repos.length === 0 ? (
         <div className="bg-dark-900 border border-dark-600 rounded-lg py-16 text-center text-gray-500">
-          Henüz kayıtlı repository yok. Webhook almak için bir repository ekleyin.
+          Henüz hiçbir reponun üyesi değilsiniz. Yeni bir repo ekleyin veya bir owner sizi kendi reposuna eklesin.
         </div>
       ) : (
         <div className="space-y-8">
-          {userRepos.length > 0 && (
+          {ownedRepos.length > 0 && (
             <section>
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                Kişisel Repolarım
+                Sahip Olduğum Repolar
               </h2>
               <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                {userRepos.map(repo => (
-                  <RepoCard key={repo.id} repo={repo} teamName="Kişisel"
+                {ownedRepos.map(repo => (
+                  <RepoCard key={repo.id} repo={repo}
                     pipelineCount={pipelineCounts[repo.id]}
                     onClick={() => navigate(`/repositories/${repo.id}`)}
                     onDelete={setDeleteTarget} />
@@ -314,43 +270,26 @@ export default function RepositoriesPage() {
               </div>
             </section>
           )}
-          {teamGroups.map(({ team, repos: tRepos }) => (
-            <section key={team.id}>
+          {memberRepos.length > 0 && (
+            <section>
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                {team.name} Repoları
+                Üye Olduğum Repolar
               </h2>
               <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                {tRepos.map(repo => (
-                  <RepoCard key={repo.id} repo={repo} teamName={team.name}
+                {memberRepos.map(repo => (
+                  <RepoCard key={repo.id} repo={repo}
                     pipelineCount={pipelineCounts[repo.id]}
                     onClick={() => navigate(`/repositories/${repo.id}`)}
                     onDelete={setDeleteTarget} />
                 ))}
               </div>
             </section>
-          ))}
-          {unknownGroups.map(({ team, repos: uRepos }) => (
-            <section key={team.id}>
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                {team.name}
-              </h2>
-              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                {uRepos.map(repo => (
-                  <RepoCard key={repo.id} repo={repo} teamName="Takım"
-                    pipelineCount={pipelineCounts[repo.id]}
-                    onClick={() => navigate(`/repositories/${repo.id}`)}
-                    onDelete={setDeleteTarget} />
-                ))}
-              </div>
-            </section>
-          ))}
+          )}
         </div>
       )}
 
       {showAdd && (
         <AddRepoModal
-          teams={teams}
-          user={user}
           onSuccess={() => { setShowAdd(false); fetchRepos(); }}
           onClose={() => setShowAdd(false)}
         />
