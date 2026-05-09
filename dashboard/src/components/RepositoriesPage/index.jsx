@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createRepository, deleteRepository, formatApiError, getRepositories } from '../../services/api';
+import { createRepository, deleteRepository, formatApiError, getPipelines, getRepositories } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 function repoShortName(url) {
@@ -131,7 +131,7 @@ function AddRepoModal({ teams, user, onSuccess, onClose }) {
   );
 }
 
-function RepoCard({ repo, teamName, onClick, onDelete }) {
+function RepoCard({ repo, teamName, pipelineCount, onClick, onDelete }) {
   const ownerLabel = repo.owner_type === 'user' ? 'Kişisel' : teamName;
   return (
     <div
@@ -153,6 +153,9 @@ function RepoCard({ repo, teamName, onClick, onDelete }) {
             {ownerLabel}
           </span>
           <span className="text-xs text-gray-600 font-mono">{repo.default_branch}</span>
+          {pipelineCount !== undefined && (
+            <span className="text-xs text-gray-600 font-mono">{pipelineCount} pipeline</span>
+          )}
         </div>
       </div>
       <button
@@ -208,6 +211,7 @@ export default function RepositoriesPage() {
   const { teams, user } = useAuth();
   const navigate = useNavigate();
   const [repos, setRepos] = useState([]);
+  const [pipelineCounts, setPipelineCounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showAdd, setShowAdd] = useState(false);
@@ -233,8 +237,13 @@ export default function RepositoriesPage() {
     setLoading(true);
     try {
       const res = await getRepositories();
-      setRepos(res.data.items ?? res.data);
+      const list = res.data.items ?? res.data;
+      setRepos(list);
       setError('');
+      const counts = await Promise.all(
+        list.map(r => getPipelines({ repo_id: r.id, page_size: 1 }).then(r2 => [r.id, r2.data.total]).catch(() => [r.id, 0]))
+      );
+      setPipelineCounts(Object.fromEntries(counts));
     } catch (err) {
       setError(formatApiError(err));
     } finally {
@@ -298,6 +307,7 @@ export default function RepositoriesPage() {
               <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 {userRepos.map(repo => (
                   <RepoCard key={repo.id} repo={repo} teamName="Kişisel"
+                    pipelineCount={pipelineCounts[repo.id]}
                     onClick={() => navigate(`/repositories/${repo.id}`)}
                     onDelete={setDeleteTarget} />
                 ))}
@@ -312,6 +322,7 @@ export default function RepositoriesPage() {
               <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 {tRepos.map(repo => (
                   <RepoCard key={repo.id} repo={repo} teamName={team.name}
+                    pipelineCount={pipelineCounts[repo.id]}
                     onClick={() => navigate(`/repositories/${repo.id}`)}
                     onDelete={setDeleteTarget} />
                 ))}
@@ -326,6 +337,7 @@ export default function RepositoriesPage() {
               <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 {uRepos.map(repo => (
                   <RepoCard key={repo.id} repo={repo} teamName="Takım"
+                    pipelineCount={pipelineCounts[repo.id]}
                     onClick={() => navigate(`/repositories/${repo.id}`)}
                     onDelete={setDeleteTarget} />
                 ))}

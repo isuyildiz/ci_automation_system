@@ -138,6 +138,7 @@ export default function RepoPipelinePage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-dark-600 text-gray-500 text-xs uppercase tracking-wider">
+                <th className="text-left px-4 py-3">ID</th>
                 <th className="text-left px-4 py-3">Durum</th>
                 <th className="text-left px-4 py-3">Branch / Commit</th>
                 <th className="text-left px-4 py-3">Tetikleme</th>
@@ -154,6 +155,7 @@ export default function RepoPipelinePage() {
                     i === pipelines.length - 1 ? 'border-b-0' : ''
                   }`}
                 >
+                  <td className="px-4 py-3 text-gray-500 font-mono text-xs">{pipeline.id.slice(0, 8)}</td>
                   <td className="px-4 py-3"><StatusBadge status={pipeline.status} /></td>
                   <td className="px-4 py-3">
                     <div className="text-gray-300 font-mono text-xs">{pipeline.branch}</div>
