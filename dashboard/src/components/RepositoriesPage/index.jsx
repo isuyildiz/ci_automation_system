@@ -7,13 +7,13 @@ function repoShortName(url) {
   return url?.replace(/^https?:\/\/github\.com\//, '') || url || '—';
 }
 
-function AddRepoModal({ teams, onSuccess, onClose }) {
+function AddRepoModal({ teams, user, onSuccess, onClose }) {
   const [form, setForm] = useState({
     url: '',
     default_branch: 'main',
     webhook_secret: '',
     owner_type: 'user',
-    owner_id: 'user-001',
+    owner_id: user?.sub ?? '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -205,7 +205,7 @@ function DeleteConfirmModal({ repo, onConfirm, onCancel, loading, error }) {
 }
 
 export default function RepositoriesPage() {
-  const { teams } = useAuth();
+  const { teams, user } = useAuth();
   const navigate = useNavigate();
   const [repos, setRepos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -338,6 +338,7 @@ export default function RepositoriesPage() {
       {showAdd && (
         <AddRepoModal
           teams={teams}
+          user={user}
           onSuccess={() => { setShowAdd(false); fetchRepos(); }}
           onClose={() => setShowAdd(false)}
         />

@@ -100,6 +100,14 @@ class ImageResolver:
 
         return commands
 
+    def get_network_mode(self, step_name: str) -> str:
+        """Returns network mode for the step. Defaults to 'none' for security."""
+        config = self._load_config()
+        step_config = config.get("steps", {}).get(step_name, {})
+        if isinstance(step_config, dict):
+            return step_config.get("network", "none")
+        return "none"
+
     def get_timeout(self, step_name: str) -> int:
         """
         Reads ci-config.yaml and returns the timeout for the given step.

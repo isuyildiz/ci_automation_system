@@ -64,12 +64,13 @@ class StepExecutor:
                 timeout = 120
 
             image = resolver.get_step_image(step)
-            logger.info(f"Executing step '{step}' (ID: {step_id}) with image '{image}' and command: {command}")
+            network_mode = resolver.get_network_mode(step)
+            logger.info(f"Executing step '{step}' (ID: {step_id}) with image '{image}', network '{network_mode}' and command: {command}")
 
             self.api_client.update_step_status(step_id, "RUNNING")
 
             # 1. create container
-            container = self.container_manager.create_container(image, command, volumes, working_dir=workspace)
+            container = self.container_manager.create_container(image, command, volumes, working_dir=workspace, network_mode=network_mode)
             if not container:
                 logger.error(f"Failed to create container for step {step}")
                 self.api_client.update_step_status(step_id, "FAILED")

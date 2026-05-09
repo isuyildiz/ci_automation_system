@@ -31,7 +31,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(form.username.trim(), form.password);
-      navigate('/pipelines', { replace: true });
+      navigate('/repositories', { replace: true });
     } catch (err) {
       setError(formatApiError(err));
     } finally {
@@ -57,7 +57,7 @@ export default function LoginPage() {
     try {
       await registerUser(form.username.trim(), form.password);
       await login(form.username.trim(), form.password);
-      navigate('/pipelines', { replace: true });
+      navigate('/repositories', { replace: true });
     } catch (err) {
       setError(formatApiError(err));
     } finally {

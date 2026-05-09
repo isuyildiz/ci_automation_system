@@ -14,6 +14,13 @@ export function AuthProvider({ children }) {
 
   const isAuthenticated = Boolean(token);
 
+  useEffect(() => {
+    if (!token) return;
+    getTeams()
+      .then(res => setTeams(res.data ?? []))
+      .catch(() => {});
+  }, [token]);
+
   const login = useCallback(async (username, password) => {
     setIsLoading(true);
     try {

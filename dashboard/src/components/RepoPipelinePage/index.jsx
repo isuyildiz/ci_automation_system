@@ -201,7 +201,16 @@ export default function RepoPipelinePage() {
         <TriggerForm
           repoUrl={repo.url}
           teamId={repo.team_id ?? null}
-          onSuccess={() => { setShowTrigger(false); setPage(1); setStatusFilter(''); fetchPipelines(); }}
+          onSuccess={(pipeline) => {
+            setShowTrigger(false);
+            if (pipeline?.id) {
+              navigate(`/repositories/${repoId}/pipelines/${pipeline.id}`);
+            } else {
+              setPage(1);
+              setStatusFilter('');
+              fetchPipelines();
+            }
+          }}
           onClose={() => setShowTrigger(false)}
         />
       )}

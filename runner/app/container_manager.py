@@ -13,7 +13,7 @@ class ContainerManager:
             logger.error(f"Failed to connect to Docker daemon: {e}")
             raise
 
-    def create_container(self, image: str, command: list, volumes: dict, working_dir: str = "/workspace") -> Optional[docker.models.containers.Container]:
+    def create_container(self, image: str, command: list, volumes: dict, working_dir: str = "/workspace", network_mode: str = "none") -> Optional[docker.models.containers.Container]:
         """Creates a docker container with specified constraints."""
         if not volumes or not isinstance(volumes, dict):
             logger.error("Volumes parameter is empty or invalid.")
@@ -33,7 +33,7 @@ class ContainerManager:
                 image=image,
                 command=command,
                 volumes=volumes,
-                network_mode="bridge",
+                network_mode=network_mode,
                 detach=True,
                 tty=False,
                 auto_remove=False,
