@@ -36,7 +36,7 @@ class PipelineRepository:
         repo_id: str | None = None,
         user_id: str | None = None,
     ) -> tuple[list[Pipeline], int]:
-        query = select(Pipeline)
+        query = select(Pipeline).options(selectinload(Pipeline.triggered_by))
         if status:
             query = query.where(Pipeline.status == status)
         if repo_id:

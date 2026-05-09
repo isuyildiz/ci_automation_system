@@ -44,6 +44,7 @@ class PipelineListItem(BaseModel):
     commit_hash: str | None
     trigger_type: TriggerType
     status: PipelineStatus
+    triggered_by_username: str | None
     started_at: datetime | None
     finished_at: datetime | None
     duration_sec: int | None

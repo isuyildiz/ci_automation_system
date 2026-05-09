@@ -42,3 +42,7 @@ class Pipeline(Base):
     repository: Mapped["Repository | None"] = relationship("Repository", back_populates="pipelines")
     triggered_by: Mapped["User | None"] = relationship("User", foreign_keys=[triggered_by_id])
     steps: Mapped[list["Step"]] = relationship("Step", back_populates="pipeline", order_by="Step.order")
+
+    @property
+    def triggered_by_username(self) -> str | None:
+        return self.triggered_by.username if self.triggered_by else None

@@ -371,6 +371,7 @@ export default function RepoPipelinePage() {
                     <th className="text-left px-4 py-3">ID</th>
                     <th className="text-left px-4 py-3">Durum</th>
                     <th className="text-left px-4 py-3">Branch / Commit</th>
+                    <th className="text-left px-4 py-3">Tetikleyen</th>
                     <th className="text-left px-4 py-3">Tetikleme</th>
                     <th className="text-left px-4 py-3">Süre</th>
                     <th className="text-left px-4 py-3">Başlangıç</th>
@@ -395,6 +396,9 @@ export default function RepoPipelinePage() {
                             {pipeline.commit_hash.slice(0, 7)}
                           </div>
                         )}
+                      </td>
+                      <td className="px-4 py-3 text-gray-300 text-xs font-mono">
+                        {pipeline.triggered_by_username ?? <span className="text-gray-600">—</span>}
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs">
                         {pipeline.trigger_type === 'webhook' ? '🔗 Webhook' : '✋ Manuel'}
