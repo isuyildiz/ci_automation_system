@@ -418,6 +418,7 @@ export default function RepoPipelinePage() {
                           <button
                             onClick={async () => {
                               if (!window.confirm(`Pipeline ${pipeline.id.slice(0, 8)} silinsin mi?`)) return;
+                              setError('');
                               try {
                                 await deletePipeline(pipeline.id);
                                 setPipelines(prev => prev.filter(p => p.id !== pipeline.id));
