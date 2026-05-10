@@ -60,9 +60,6 @@ export const triggerPipeline = (repoUrl, branch) => {
 export const stopPipeline = (id) =>
   api.post(`/pipelines/${id}/stop`);
 
-export const retriggerPipeline = (id) =>
-  api.post(`/pipelines/${id}/retrigger`);
-
 export const deletePipeline = (id) =>
   api.delete(`/pipelines/${id}`);
 

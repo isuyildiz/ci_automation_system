@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   formatApiError, formatDate, formatDuration,
-  getPipeline, getPipelineReport, retriggerPipeline, stopPipeline,
+  getPipeline, getPipelineReport, stopPipeline, triggerPipeline,
 } from '../../services/api';
 import LogViewer from '../LogViewer';
 import StatusBadge from '../StatusBadge';
@@ -77,7 +77,7 @@ export default function PipelineDetailPage() {
     if (!window.confirm('Aynı branch için yeni bir pipeline başlatılsın mı?')) return;
     setRetriggering(true);
     try {
-      const res = await retriggerPipeline(id);
+      const res = await triggerPipeline(pipeline.repo_url, pipeline.branch);
       const newId = res.data.id;
       if (repoId) {
         navigate(`/repositories/${repoId}/pipelines/${newId}`);
