@@ -1,3 +1,4 @@
+import glob
 import logging
 import os
 import threading
@@ -157,4 +158,18 @@ class StepExecutor:
             logger.info(f"Step {step} completed successfully.")
             self.api_client.update_step_status(step_id, "SUCCESS", exit_code=0)
 
+            if step == "install":
+                remaining = steps[steps.index(step) + 1:]
+                if "test" in remaining and not self._has_test_files(workspace):
+                    logger.info("No test files found after install. Skipping remaining steps, pipeline → WARNING.")
+                    return "WARNING"
+
         return True
+
+    def _has_test_files(self, workspace: str) -> bool:
+        if os.path.isdir(os.path.join(workspace, "test")) or os.path.isdir(os.path.join(workspace, "tests")):
+            return True
+        for pattern in ("**/*.test.*", "**/*.spec.*"):
+            if glob.glob(os.path.join(workspace, pattern), recursive=True):
+                return True
+        return False

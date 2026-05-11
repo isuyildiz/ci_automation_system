@@ -48,6 +48,9 @@ def process_job(job_data: dict, api_client: OrchestratorAPIClient,
         if exec_result is True:
             final_status = "SUCCESS"
             logger.info(f"Job completed successfully for pipeline: {pipeline_id}")
+        elif exec_result == "WARNING":
+            final_status = "WARNING"
+            logger.info(f"Job completed with no tests found for pipeline: {pipeline_id}")
         elif exec_result is False:
             final_status = "FAILED"
             logger.info(f"Job failed for pipeline: {pipeline_id}")
