@@ -497,6 +497,14 @@ export default function RepositoriesPage() {
   const ownedRepos = repos.filter(r => r.my_role === 'owner');
   const memberRepos = repos.filter(r => r.my_role === 'member');
 
+  const webhookUrl = `${window.location.protocol}//${window.location.hostname}:8081/webhook`;
+  const [webhookCopied, setWebhookCopied] = useState(false);
+  const copyWebhook = () => {
+    navigator.clipboard.writeText(webhookUrl);
+    setWebhookCopied(true);
+    setTimeout(() => setWebhookCopied(false), 2000);
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -511,6 +519,17 @@ export default function RepositoriesPage() {
           className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-md transition-colors"
         >
           + Yeni Repo Ekle
+        </button>
+      </div>
+
+      <div className="flex items-center gap-3 bg-dark-900 border border-dark-600 rounded-md px-4 py-2.5 mb-5 text-xs">
+        <span className="text-gray-400 shrink-0">Webhook URL</span>
+        <span className="font-mono text-gray-300 flex-1 truncate">{webhookUrl}</span>
+        <button
+          onClick={copyWebhook}
+          className="shrink-0 text-gray-500 hover:text-gray-200 transition-colors"
+        >
+          {webhookCopied ? '✓ Kopyalandı' : '⧉ Kopyala'}
         </button>
       </div>
 
